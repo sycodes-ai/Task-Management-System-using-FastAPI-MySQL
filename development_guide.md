@@ -42,7 +42,50 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 ### 2. Environment
 The application dependencies are managed via `pipenv`. Make sure you have the required packages (like `fastapi`, `uvicorn`, `sqlalchemy`, `pymysql`, `passlib`, `python-jose`, and `python-dotenv`).
 
-### 3. Running the Application
+### 3. Database Connection & Sessions
+The database connection is managed via `app/database.py` using **SQLAlchemy**.
+- Connects to MySQL using the `DATABASE_URL` environment variable.
+- Provides `SessionLocal` for independent transactions.
+- Provides the `get_db()` dependency mapping for FastAPI injection.
+
+**Example usage in route handlers:**
+```python
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+
+@router.get("/")
+def get_items(db: Session = Depends(get_db)):
+    pass
+```
+
+### 4. Data Validation & Serialization
+Data validation is handled via **Pydantic** in `app/schemas.py`.
+- **Base Models**: Contain common attributes.
+- **Create Models**: Inherit from Base and add required fields for creation (e.g., passwords).
+- **Response Models**: Add IDs, timestamps, and relationships. They use `class Config: from_attributes = True` to parse SQLAlchemy ORM objects into JSON seamlessly.
+
+### 5. Authentication (JWT)
+The application secures endpoints using **OAuth2 with Password (and hashing), and Bearer with JWT tokens**.
+- Handled primarily in `app/auth.py`.
+- **Hashing**: Uses `passlib` with `bcrypt`.
+- **Token Generation**: Uses `python-jose` to create JWT tokens holding a `sub` payload (the User ID).
+- **Dependency Map**: To protect a route, it must require `get_current_user(...)` mapping via `Depends(get_current_user)`.
+
+### 6. Endpoint Routers
+The application logically splits features into dedicated routers mapped inside `app/main.py`.
+
+**`Users` (`app/routers/users.py`)**:
+- `POST /users/register`: Registers a new user account.
+- `POST /users/login`: Generates an access token mapped to the `OAuth2PasswordRequestForm` (`form_data.username` maps to our `custom_username` field).
+- `GET /users/me`: Protected route returning the current authenticated user's profile.
+
+**`Tasks` (`app/routers/tasks.py`)**:
+- Implements standard CRUD logic mapping back to the authenticated user.
+- A user can only access, update, or delete tasks where `models.Task.owner_id` exactly matches the `current_user.id`.
+- `POST /tasks/`, `GET /tasks/`, `GET /tasks/{task_id}`, `PUT /tasks/{task_id}`, `DELETE /tasks/{task_id}`.
+
+### 7. Running the Application
 To run the server locally for development:
 ```bash
 uvicorn app.main:app --reload
