@@ -10,6 +10,8 @@ sqlalchemy = "*"
 pymysql = "*"
 python-jose = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
+cryptography = "*"
+bcrypt = "==4.0.1"
 
 [dev-packages]
 

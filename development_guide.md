@@ -22,6 +22,14 @@ Task Management System/
 │   ├── core/                 # Core configuration
 │   │   ├── __init__.py
 │   │   └── config.py         # Environment variables and app settings
+├── my-react-app/             # React Frontend (Vite)
+│   ├── src/
+│   │   ├── components/       # Login, Register, Dashboard UI
+│   │   ├── App.jsx           # React routing setup
+│   │   ├── api.js            # Axios client configured for FastAPI
+│   │   └── index.css         # Premium and responsive styling
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.js        # Vite build configuration
 ├── .env                      # Environment variables stored locally (not committed)
 ├── Pipfile                   # Pipenv dependencies
 ├── Pipfile.lock              # Pipenv lock file
@@ -86,8 +94,11 @@ The application logically splits features into dedicated routers mapped inside `
 - `POST /tasks/`, `GET /tasks/`, `GET /tasks/{task_id}`, `PUT /tasks/{task_id}`, `DELETE /tasks/{task_id}`.
 
 ### 7. Running the Application
-To run the server locally for development:
+To run the server locally, you need to start both the FastAPI backend and the React frontend in parallel.
+
+**Backend (FastAPI):**
 ```bash
+# In the root project directory:
 uvicorn app.main:app --reload
 ```
 The FastAPI instance is initialized in `app/main.py` which sets up:
@@ -97,6 +108,14 @@ The FastAPI instance is initialized in `app/main.py` which sets up:
 - Router inclusions for `/users` and `/tasks` from the `app.routers` package.
 
 The API documentation will be available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs) and the root message at [http://127.0.0.1:8000/](http://127.0.0.1:8000/).
+
+**Frontend (React/Vite):**
+```bash
+# In a separate terminal, navigate to the frontend directory:
+cd my-react-app
+npm run dev
+```
+The frontend will typically run at `http://localhost:5173/` and communicates with the backend via the Axios client configured in `my-react-app/src/api.js`.
 
 ## Development Rules
 - **No Git Usage**: This project is developed locally. Do not use git add, commit, or push. Ensure sensitive credentials remain strictly local.
