@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import users, tasks
-from app.database import engine, Base
-from app import models
+from app.api.api_v1.api import api_router
+from app.db.session import engine
+from app.db.base import Base
+from app.core.config import settings
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -28,5 +29,4 @@ def root():
     return {"message": "Welcome to the Task Management System API. Visit /docs for documentation."}
 
 # Include API routers
-app.include_router(users.router, prefix="/users", tags=["Users"])
-app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
+app.include_router(api_router, prefix=settings.API_V1_STR)
