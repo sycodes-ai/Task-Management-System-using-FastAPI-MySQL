@@ -1,9 +1,12 @@
 # Task Management System API
 
-A professional, modular, and scalable Task Management System built with **FastAPI**, **MySQL**, and **React**. This project demonstrates a clean architecture approach, prioritizing separation of concerns, data validation, and secure authentication.
+A professional, modular, and scalable Task Management System built with **FastAPI**, **MySQL**, and **React**. This project implements **Role-Based Access Control (RBAC)**, allowing administrators to manage and assign tasks to staff members.
 
 ## 🚀 Project Overview
-The Task Management System is designed to help users efficiently manage their daily tasks. It provides a robust backend API for user registration, secure authentication, and full CRUD (Create, Read, Update, Delete) operations for tasks, each linked to a specific user.
+The Task Management System is designed for team-based productivity. 
+- **Admins**: Can manage all users, create tasks, and assign them specifically to Staff members. Admins have full editing rights over all tasks.
+- **Staff**: Can view their personal task lists and update the progress status of their assigned work.
+- **Task Statuses**: Supports a robust lifecycle — `Pending`, `In Progress`, and `Completed`.
 
 ## 🛠️ Technology Stack
 - **Language**: Python 3.13
@@ -15,26 +18,26 @@ The Task Management System is designed to help users efficiently manage their da
 - **Frontend**: React (Vite-based)
 
 ## 🏗️ Architecture & Design Principles
-The project follows **Clean Architecture** principles to ensure the codebase remains maintainable and testable as it grows:
+The project follows **Clean Architecture** principles to ensure the codebase remains maintainable and testable:
 
-- **Modularity**: Logic is split into dedicated packages (models, schemas, crud, api).
+- **RBAC Implemented**: Native support for `admin` and `staff` roles within the JWT claims and database models.
+- **Modularity**: Logic is split into dedicated packages (`models`, `schemas`, `crud`, `api`, `core`).
 - **Separation of Concerns**: Database logic (CRUD) is decoupled from API route handlers.
-- **Dependency Injection**: Utilizes FastAPI's dependency system for database sessions and authentication.
-- **Data Validation**: Strict typing and validation using Pydantic models.
+- **Dependency Injection**: Utilizes FastAPI's dependency system for database sessions, authentication, and role authorization.
 - **Secure by Design**: Password hashing with Bcrypt and stateless JWT-based authentication.
 
 ## 📂 Project Structure
 ```text
 app/
 ├── api/
-│   └── api_v1/          # Versioned API routes (v1)
-│       ├── endpoints/   # Individual route handlers (login, users, tasks)
-│       ├── api.py       # Main router aggregator
-│       └── deps.py      # Common dependencies (get_db, get_current_user)
-├── core/                # Global config and security utilities
+│   ├── api_v1/          # Versioned API routes (v1)
+│   │   ├── endpoints/   # Individual route handlers (login, users, tasks)
+│   │   ├── api.py       # Main router aggregator
+│   │   └── deps.py      # Common dependencies (get_db, get_current_user, get_current_admin)
+├── core/                # Global config (Security, JWT)
 ├── crud/                # Encapsulated database operations (CRUD layer)
 ├── db/                  # Session management and base classes
-├── models/              # SQLAlchemy database models
+├── models/              # SQLAlchemy database models (User, Task)
 ├── schemas/             # Pydantic data validation schemas
 └── main.py              # Application entry point
 ```
@@ -72,21 +75,29 @@ npm run dev
 ```
 
 ## 🔌 API Endpoints (v1)
-| Method | Endpoint | Description | Auth Required |
+
+### Users & Auth
+| Method | Endpoint | Description | Role Required |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/v1/users/register` | Register a new user | No |
-| **POST** | `/api/v1/login/access-token` | Login and receive JWT | No |
-| **GET** | `/api/v1/users/me` | Get current user profile | Yes |
-| **GET** | `/api/v1/tasks/` | List all tasks for current user | Yes |
-| **POST** | `/api/v1/tasks/` | Create a new task | Yes |
-| **PUT** | `/api/v1/tasks/{id}` | Update a specific task | Yes |
-| **DELETE** | `/api/v1/tasks/{id}` | Delete a specific task | Yes |
+| **POST** | `/api/v1/users/register` | Register a new user (with role) | None |
+| **POST** | `/api/v1/login/access-token` | Login and receive JWT | None |
+| **GET** | `/api/v1/users/me` | Get current user profile | Any |
+| **GET** | `/api/v1/users/` | List all users | **Admin** |
+
+### Tasks
+| Method | Endpoint | Description | Role Restrictions |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/v1/tasks/` | List tasks | Admin: All, Staff: Assigned only |
+| **POST** | `/api/v1/tasks/` | Create & assign task | **Admin only** |
+| **PUT** | `/api/v1/tasks/{id}` | Update task | Admin: Full edit, Staff: Status only |
+| **DELETE** | `/api/v1/tasks/{id}` | Delete a task | **Admin only** |
 
 ## 🔑 Authentication Flow
-1. User registers via `/register`.
+1. User registers via `/register` selecting an `admin` or `staff` role.
 2. User provides credentials to `/login/access-token`.
-3. Server returns a **JWT Access Token**.
-4. User includes this token in the `Authorization: Bearer <token>` header for protected requests.
+3. Server returns a **JWT Access Token** including the user ID.
+4. User includes this token in the `Authorization: Bearer <token>` header.
+5. The API enforces role-based permissions on a per-request basis.
 
 ## 🔮 Future Improvements
 - [ ] Implement Alembic for database migrations.
