@@ -5,7 +5,7 @@ from datetime import datetime
 class TaskBase(BaseModel):
     title: str
     description: Optional[str] = None
-    is_completed: bool = False
+    status: str = "pending"
 
 class TaskCreate(TaskBase):
     assignee_id: int
@@ -13,7 +13,8 @@ class TaskCreate(TaskBase):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    is_completed: Optional[bool] = None
+    status: Optional[str] = None
+    assignee_id: Optional[int] = None
 
 class TaskResponse(TaskBase):
     id: int

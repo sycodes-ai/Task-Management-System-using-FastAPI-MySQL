@@ -16,7 +16,7 @@ def create_assigned_task(db: Session, obj_in: TaskCreate, assigned_by_id: int) -
     db_obj = Task(
         title=obj_in.title,
         description=obj_in.description,
-        is_completed=obj_in.is_completed,
+        status=obj_in.status,
         assignee_id=obj_in.assignee_id,
         assigned_by_id=assigned_by_id
     )

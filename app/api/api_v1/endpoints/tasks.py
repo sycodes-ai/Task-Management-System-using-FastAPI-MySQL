@@ -63,13 +63,18 @@ def update_task(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Update a task.
+    Update a task. Staff can only update status. Admins can update all fields.
     """
     task = crud_task.get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if current_user.role != "admin" and task.assignee_id != current_user.id:
-        raise HTTPException(status_code=400, detail="Not enough permissions")
+        
+    if current_user.role == "staff":
+        if task.assignee_id != current_user.id:
+            raise HTTPException(status_code=400, detail="Not enough permissions")
+        # Ensure staff can only update status
+        task_in = schemas.TaskUpdate(status=task_in.status)
+
     return crud_task.update_task(db, db_obj=task, obj_in=task_in)
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)

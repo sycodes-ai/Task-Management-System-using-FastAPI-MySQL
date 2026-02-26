@@ -19,15 +19,16 @@ function StaffDashboard({ user }) {
         }
     };
 
-    const handleToggleTask = async (task) => {
+    const handleStatusChange = async (task, newStatus) => {
         try {
             await api.put(`/tasks/${task.id}`, {
-                ...task,
-                is_completed: !task.is_completed // Must match backend 'is_completed'
+                title: task.title,
+                description: task.description,
+                status: newStatus
             });
             fetchTasks();
         } catch (err) {
-            console.error('Failed to update task', err);
+            console.error('Failed to update task status', err);
         }
     };
 
@@ -57,10 +58,18 @@ function StaffDashboard({ user }) {
                     ) : (
                         <div className="task-grid">
                             {tasks.map(task => (
-                                <div key={task.id} className={`task-card ${task.is_completed ? 'completed' : ''}`}>
+                                <div key={task.id} className={`task-card ${task.status === 'completed' ? 'completed' : ''}`}>
                                     <div className="task-content">
-                                        <div className="checkbox-wrapper" onClick={() => handleToggleTask(task)}>
-                                            <div className={`custom-checkbox ${task.is_completed ? 'checked' : ''}`}></div>
+                                        <div className="task-status-control">
+                                            <select
+                                                value={task.status}
+                                                onChange={(e) => handleStatusChange(task, e.target.value)}
+                                                className={`status-select ${task.status}`}
+                                            >
+                                                <option value="pending">Pending</option>
+                                                <option value="in_progress">In Progress</option>
+                                                <option value="completed">Completed</option>
+                                            </select>
                                         </div>
                                         <div>
                                             <h3>{task.title}</h3>

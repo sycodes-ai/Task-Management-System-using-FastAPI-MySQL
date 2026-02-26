@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.base_class import Base
@@ -9,7 +9,7 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(100), index=True)
     description = Column(String(255), index=True, nullable=True)
-    is_completed = Column(Boolean, default=False)
+    status = Column(Enum('pending', 'in_progress', 'completed', name='task_status'), default='pending', nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
