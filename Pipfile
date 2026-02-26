@@ -4,14 +4,17 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-fastapi = "*"
-uvicorn = "*"
-sqlalchemy = "*"
-pymysql = "*"
 python-jose = "*"
 passlib = {extras = ["bcrypt"], version = "*"}
 cryptography = "*"
 bcrypt = "==4.0.1"
+email-validator = "*"
+pydantic-settings = "*"
+python-multipart = "*"
+pymysql = "*"
+sqlalchemy = "*"
+fastapi = "*"
+uvicorn = "*"
 
 [dev-packages]
 

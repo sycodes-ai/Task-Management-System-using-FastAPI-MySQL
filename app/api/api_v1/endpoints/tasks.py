@@ -74,7 +74,7 @@ def delete_task(
     db: Session = Depends(deps.get_db),
     task_id: int,
     current_user: models.User = Depends(deps.get_current_user),
-) -> Any:
+):
     """
     Delete a task.
     """
@@ -84,4 +84,3 @@ def delete_task(
     if task.owner_id != current_user.id:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     crud_task.remove_task(db, task_id=task_id)
-    return None
