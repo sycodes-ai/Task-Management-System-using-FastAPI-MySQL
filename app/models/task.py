@@ -14,7 +14,9 @@ class Task(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Foreign key link back to the User table
-    owner_id = Column(Integer, ForeignKey("users.id"))
+    assignee_id = Column(Integer, ForeignKey("users.id"))
+    assigned_by_id = Column(Integer, ForeignKey("users.id"))
     
     # Relationship to user
-    owner = relationship("User", back_populates="tasks")
+    assignee = relationship("User", back_populates="tasks_assigned_to_me", foreign_keys=[assignee_id])
+    assigned_by = relationship("User", back_populates="tasks_assigned_by_me", foreign_keys=[assigned_by_id])

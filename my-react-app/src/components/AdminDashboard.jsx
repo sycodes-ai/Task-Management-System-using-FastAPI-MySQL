@@ -2,26 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
-function Dashboard() {
+function AdminDashboard({ user }) {
     const [tasks, setTasks] = useState([]);
+    const [users, setUsers] = useState([]);
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskDesc, setNewTaskDesc] = useState('');
-    const [user, setUser] = useState(null);
+    const [selectedUserId, setSelectedUserId] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetchUser();
         fetchTasks();
+        fetchUsers();
     }, []);
-
-    const fetchUser = async () => {
-        try {
-            const { data } = await api.get('/users/me');
-            setUser(data);
-        } catch (err) {
-            handleLogout();
-        }
-    };
 
     const fetchTasks = async () => {
         try {
@@ -32,11 +24,24 @@ function Dashboard() {
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const { data } = await api.get('/users/');
+            // Filter strictly to staff members if desired, or all users
+            setUsers(data.filter(u => u.role === 'staff' || u.role === 'admin'));
+            if (data.length > 0) {
+                setSelectedUserId(data[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to fetch users', err);
+        }
+    };
+
     const handleCreateTask = async (e) => {
         e.preventDefault();
-        if (!newTaskTitle.trim()) return;
+        if (!newTaskTitle.trim() || !selectedUserId) return;
         try {
-            await api.post('/tasks/', { title: newTaskTitle, description: newTaskDesc });
+            await api.post('/tasks/', { title: newTaskTitle, description: newTaskDesc, assignee_id: parseInt(selectedUserId) });
             setNewTaskTitle('');
             setNewTaskDesc('');
             fetchTasks();
@@ -49,7 +54,7 @@ function Dashboard() {
         try {
             await api.put(`/tasks/${task.id}`, {
                 ...task,
-                completed: !task.completed
+                is_completed: !task.is_completed // Make sure this matches backend schema
             });
             fetchTasks();
         } catch (err) {
@@ -75,9 +80,9 @@ function Dashboard() {
         <div className="dashboard-layout">
             <header className="dashboard-header">
                 <div className="header-content">
-                    <h1>Task Board</h1>
+                    <h1>Admin Dashboard</h1>
                     <div className="user-controls">
-                        <span className="user-greeting">Hello, {user?.custom_username}</span>
+                        <span className="user-greeting">Hello, {user?.custom_username} (Admin)</span>
                         <button onClick={handleLogout} className="text-button">Logout</button>
                     </div>
                 </div>
@@ -99,26 +104,37 @@ function Dashboard() {
                             value={newTaskDesc}
                             onChange={(e) => setNewTaskDesc(e.target.value)}
                         />
-                        <button type="submit" className="primary-button">Add Task</button>
+                        <select
+                            value={selectedUserId}
+                            onChange={(e) => setSelectedUserId(e.target.value)}
+                            required
+                        >
+                            <option value="">Select Assignee</option>
+                            {users.map(u => (
+                                <option key={u.id} value={u.id}>{u.custom_username} ({u.role})</option>
+                            ))}
+                        </select>
+                        <button type="submit" className="primary-button">Assign Task</button>
                     </form>
                 </section>
 
                 <section className="tasks-section">
                     {tasks.length === 0 ? (
                         <div className="empty-state">
-                            <p>No tasks yet. Create one above!</p>
+                            <p>No tasks found.</p>
                         </div>
                     ) : (
                         <div className="task-grid">
                             {tasks.map(task => (
-                                <div key={task.id} className={`task-card ${task.completed ? 'completed' : ''}`}>
-                                    <div className="task-content" onClick={() => handleToggleTask(task)}>
-                                        <div className="checkbox-wrapper">
-                                            <div className={`custom-checkbox ${task.completed ? 'checked' : ''}`}></div>
+                                <div key={task.id} className={`task-card ${task.is_completed ? 'completed' : ''}`}>
+                                    <div className="task-content">
+                                        <div className="checkbox-wrapper" onClick={() => handleToggleTask(task)}>
+                                            <div className={`custom-checkbox ${task.is_completed ? 'checked' : ''}`}></div>
                                         </div>
                                         <div>
                                             <h3>{task.title}</h3>
                                             {task.description && <p>{task.description}</p>}
+                                            <small>Assigned to User ID: {task.assignee_id}</small>
                                         </div>
                                     </div>
                                     <button
@@ -138,4 +154,4 @@ function Dashboard() {
     );
 }
 
-export default Dashboard;
+export default AdminDashboard;

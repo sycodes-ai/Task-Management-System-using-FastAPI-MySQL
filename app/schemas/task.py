@@ -8,7 +8,7 @@ class TaskBase(BaseModel):
     is_completed: bool = False
 
 class TaskCreate(TaskBase):
-    pass
+    assignee_id: int
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -17,7 +17,8 @@ class TaskUpdate(BaseModel):
 
 class TaskResponse(TaskBase):
     id: int
-    owner_id: int
+    assignee_id: int
+    assigned_by_id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
 

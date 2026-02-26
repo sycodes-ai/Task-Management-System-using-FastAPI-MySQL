@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.api import deps
-from app.crud import crud_task
+from app.crud import crud_task, crud_user
 
 router = APIRouter()
 
@@ -16,9 +16,12 @@ def read_tasks(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve tasks.
+    Retrieve tasks. Admins see all, Staff see assigned.
     """
-    tasks = crud_task.get_multi_by_owner(db, owner_id=current_user.id, skip=skip, limit=limit)
+    if current_user.role == "admin":
+        tasks = crud_task.get_multi(db, skip=skip, limit=limit)
+    else:
+        tasks = crud_task.get_multi_by_assignee(db, assignee_id=current_user.id, skip=skip, limit=limit)
     return tasks
 
 @router.post("/", response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
@@ -26,12 +29,13 @@ def create_task(
     *,
     db: Session = Depends(deps.get_db),
     task_in: schemas.TaskCreate,
-    current_user: models.User = Depends(deps.get_current_user),
+    current_admin: models.User = Depends(deps.get_current_admin),
 ) -> Any:
     """
-    Create new task.
+    Create new task. (Admin only)
     """
-    return crud_task.create_with_owner(db, obj_in=task_in, owner_id=current_user.id)
+    user = crud_user.get_users(db) # Verify assignee exists? Let FK handle it or optionally verify.
+    return crud_task.create_assigned_task(db, obj_in=task_in, assigned_by_id=current_admin.id)
 
 @router.get("/{task_id}", response_model=schemas.TaskResponse)
 def read_task(
@@ -46,7 +50,7 @@ def read_task(
     task = crud_task.get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if task.owner_id != current_user.id:
+    if current_user.role != "admin" and task.assignee_id != current_user.id:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     return task
 
@@ -64,7 +68,7 @@ def update_task(
     task = crud_task.get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if task.owner_id != current_user.id:
+    if current_user.role != "admin" and task.assignee_id != current_user.id:
         raise HTTPException(status_code=400, detail="Not enough permissions")
     return crud_task.update_task(db, db_obj=task, obj_in=task_in)
 
@@ -73,14 +77,12 @@ def delete_task(
     *,
     db: Session = Depends(deps.get_db),
     task_id: int,
-    current_user: models.User = Depends(deps.get_current_user),
+    current_admin: models.User = Depends(deps.get_current_admin),
 ):
     """
-    Delete a task.
+    Delete a task. (Admin only)
     """
     task = crud_task.get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    if task.owner_id != current_user.id:
-        raise HTTPException(status_code=400, detail="Not enough permissions")
     crud_task.remove_task(db, task_id=task_id)

@@ -14,11 +14,15 @@ def create_user(db: Session, obj_in: UserCreate):
         email=obj_in.email,
         custom_username=obj_in.custom_username,
         hashed_password=get_password_hash(obj_in.password),
+        role=obj_in.role if obj_in.role else "staff",
     )
     db.add(db_obj)
     db.commit()
     db.refresh(db_obj)
     return db_obj
+
+def get_users(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(User).offset(skip).limit(limit).all()
 
 def authenticate(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)

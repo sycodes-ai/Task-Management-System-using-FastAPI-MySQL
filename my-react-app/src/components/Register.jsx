@@ -6,6 +6,7 @@ function Register() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [role, setRole] = useState('staff');
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
@@ -15,7 +16,8 @@ function Register() {
             await api.post('/users/register', {
                 custom_username: username,
                 email: email,
-                password: password
+                password: password,
+                role: role
             });
             navigate('/login');
         } catch (err) {
@@ -68,6 +70,13 @@ function Register() {
                             placeholder="Create a strong password"
                             required
                         />
+                    </div>
+                    <div className="form-group">
+                        <label>Role</label>
+                        <select value={role} onChange={(e) => setRole(e.target.value)} className="role-select">
+                            <option value="staff">Staff</option>
+                            <option value="admin">Admin</option>
+                        </select>
                     </div>
                     <button type="submit" className="primary-button">Register</button>
                 </form>
