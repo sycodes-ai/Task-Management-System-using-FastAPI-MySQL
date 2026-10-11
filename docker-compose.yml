@@ -1,0 +1,36 @@
+# Local demo of the app running against MySQL:  docker compose up --build
+# Then open http://localhost:8000  (demo logins are on the login page)
+# The passwords below are for local use only.
+services:
+  mysql:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-tms}
+      MYSQL_USER: ${MYSQL_USER:-tms}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tms_password}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # 127.0.0.1 (TCP) only answers once the real server is up, not the temporary init server
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  app:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-tms}:${MYSQL_PASSWORD:-tms_password}@mysql:3306/${MYSQL_DATABASE:-tms}
+      DEMO_MODE: "true"
+      SECRET_KEY: ${SECRET_KEY:-local-demo-secret-change-me}
+    ports:
+      - "8000:8000"
+    restart: on-failure
+
+volumes:
+  mysql_data:

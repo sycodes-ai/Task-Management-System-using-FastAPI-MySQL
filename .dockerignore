@@ -1,0 +1,35 @@
+# Version control and secrets
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output (installed/built inside the image)
+**/node_modules
+**/dist
+Pipfile
+Pipfile.lock
+
+# Python caches and local databases
+**/__pycache__
+**/*.pyc
+.venv
+venv
+*.db
+*.sqlite3
+
+# Tests and tooling
+.pytest_cache
+tests
+pytest.ini
+requirements-dev.txt
+.github
+
+# Docs and local files
+docs
+*.md
+UPGRADE_PLAN.md
+docker-compose.yml
+Dockerfile
+.dockerignore
