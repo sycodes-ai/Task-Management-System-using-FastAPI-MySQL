@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +8,7 @@ from app.db.session import engine, SessionLocal
 from app.db.base import Base
 from app.db.seed import seed_demo_data
 from app.core.config import settings
+from app.core.frontend import add_frontend, frontend_available
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,12 +37,19 @@ def create_app() -> FastAPI:
         expose_headers=["X-Total-Count"],
     )
 
-    @app.get("/", tags=["Root"])
-    def root():
-        return {"message": "Welcome to the Task Management System API. Visit /docs for documentation."}
-
     # Include API routers
     app.include_router(api_router, prefix=settings.API_V1_STR)
+
+    static_dir = Path(settings.STATIC_DIR)
+    if frontend_available(static_dir):
+        # One service: the React app is served from the same origin as the API
+        add_frontend(app, static_dir)
+    else:
+        # API only (no frontend build)
+        @app.get("/", tags=["Root"])
+        def root():
+            return {"message": "Welcome to the Task Management System API. Visit /docs for documentation."}
+
     return app
 
 app = create_app()

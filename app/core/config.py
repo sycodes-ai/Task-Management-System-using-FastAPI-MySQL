@@ -1,11 +1,15 @@
 import logging
 import secrets
+from pathlib import Path
 from typing import Literal
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+# Repository root (this file is app/core/config.py)
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -20,6 +24,8 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed origins
     CORS_ORIGINS: str = "http://localhost:5173"
     DEMO_MODE: bool = False
+    # React build served by FastAPI when it contains index.html
+    STATIC_DIR: str = str(BASE_DIR / "my-react-app" / "dist")
 
     @model_validator(mode="after")
     def ensure_secret_key(self) -> "Settings":
