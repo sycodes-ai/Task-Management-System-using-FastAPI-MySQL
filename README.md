@@ -125,21 +125,16 @@ SECRET_KEY=a-long-random-string
 
 ### 2. Backend
 
-Pipenv (the `Pipfile` asks for Python 3.13):
-
-```bash
-pipenv install
-pipenv run uvicorn app.main:app --reload
-```
-
-or a plain virtual environment (Python 3.12+):
+Use a virtual environment (Python 3.12+):
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate        # Windows: .venv\Scriptsctivate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+
+`requirements.txt` is the single list of dependencies (`requirements-dev.txt` adds the test tools).
 
 Tables are created on start-up. Add `DEMO_MODE=true` to also create the demo users and tasks. The API is at http://127.0.0.1:8000 and the interactive docs at http://127.0.0.1:8000/docs.
 
@@ -177,8 +172,8 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-- **92 tests** run anywhere: they use an in-memory SQLite database and ignore your `.env`. They cover registration, login, token errors, role rules, validation, filters, pagination, stats, the demo seed and serving the React build.
-- **1 more test** (93 in total) runs a short end-to-end flow on a real database. It is skipped unless `TEST_DATABASE_URL` is set. **CI runs it against a MySQL 8 service.** To run it yourself, use an empty throwaway database (its tables are dropped afterwards):
+- **96 tests** run anywhere: they use an in-memory SQLite database and ignore your `.env`. They cover registration, login, token errors, role rules, validation, filters, pagination, stats, the demo seed and serving the React build.
+- **1 more test** (97 in total) runs a short end-to-end flow on a real database. It is skipped unless `TEST_DATABASE_URL` is set. **CI runs it against a MySQL 8 service.** To run it yourself, use an empty throwaway database (its tables are dropped afterwards):
 
   ```bash
   TEST_DATABASE_URL=mysql+pymysql://root:root@127.0.0.1:3306/tms_test pytest
@@ -231,6 +226,7 @@ Base path: `/api/v1`. Interactive documentation: `/docs`.
 
 ## 🔒 Security notes
 
+- **Emails are case-insensitive**: they are stored in lower case, and `Admin@demo.com` logs in as `admin@demo.com`.
 - **Passwords** are hashed with bcrypt and never returned by the API.
 - **Registration is always staff.** The client cannot choose a role; admins are created only by the demo seed or directly in the database.
 - **Tokens** are signed with `SECRET_KEY` and expire. In production (`ENVIRONMENT=production`) the app refuses to start without a `SECRET_KEY`; in development a random one is generated.
@@ -248,7 +244,8 @@ Base path: `/api/v1`. Interactive documentation: `/docs`.
 - **No rate limiting on login**, so repeated password guesses are not slowed down.
 - **No audit log** of who changed what.
 - **Admins cannot be created in the app.** Outside demo mode, promote a user in the database: `UPDATE users SET role = 'admin' WHERE email = '...';`.
-- **PostgreSQL** is supported through `DATABASE_URL`, but the tests run against SQLite and MySQL, not PostgreSQL.
+- **Docker Compose and PostgreSQL** are supported but not tested in CI. CI tests SQLite and MySQL 8 and smoke-tests the Docker image; `docker compose up` and a PostgreSQL `DATABASE_URL` have not been run there.
+- **The admin dashboard loads up to 100 users** (for the assignee list and names). With more users, some assignees will be missing from the list.
 - **No automated frontend tests** (the frontend is checked with lint and build only).
 
 Next steps: Alembic migrations, refresh-token rotation, login rate limiting, an audit log.

@@ -62,3 +62,11 @@ def test_startup_does_not_seed_when_demo_mode_is_off(monkeypatch, engine, sessio
 
     with session_factory() as db:
         assert db.query(User).count() == 0
+
+def test_demo_admin_can_log_in_with_any_email_case(monkeypatch, engine, session_factory, app_factory):
+    monkeypatch.setattr(main, "engine", engine)
+    monkeypatch.setattr(main, "SessionLocal", session_factory)
+    monkeypatch.setattr(settings, "DEMO_MODE", True)
+    with TestClient(app_factory(session_factory)) as client:
+        response = client.post("/api/v1/login/access-token", data={"username": "Admin@demo.com", "password": "Admin123!"})
+        assert response.status_code == 200

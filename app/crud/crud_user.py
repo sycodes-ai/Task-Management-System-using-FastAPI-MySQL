@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate
@@ -7,14 +8,15 @@ def get_user(db: Session, user_id: int):
     return db.get(User, user_id)
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(User).filter(User.email == email).first()
+    # Emails are case-insensitive; compare in lower case so older mixed-case rows still match
+    return db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
 
 def get_user_by_username(db: Session, username: str):
     return db.query(User).filter(User.custom_username == username).first()
 
 def create_user(db: Session, obj_in: UserCreate):
     db_obj = User(
-        email=obj_in.email,
+        email=obj_in.email.strip().lower(),
         custom_username=obj_in.custom_username,
         hashed_password=get_password_hash(obj_in.password),
         role="staff",

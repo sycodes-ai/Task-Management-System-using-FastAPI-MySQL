@@ -42,3 +42,6 @@ test_fetch.py
 test_db.py
 reset_db.py
 .pytest_cache/
+
+# Claude Code
+.claude/

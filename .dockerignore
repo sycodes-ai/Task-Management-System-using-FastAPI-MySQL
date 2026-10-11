@@ -8,8 +8,6 @@
 # Dependencies and build output (installed/built inside the image)
 **/node_modules
 **/dist
-Pipfile
-Pipfile.lock
 
 # Python caches and local databases
 **/__pycache__

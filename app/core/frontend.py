@@ -17,7 +17,7 @@ def _is_backend_path(path: str) -> bool:
     return any(path == prefix or path.startswith(prefix + "/") for prefix in BACKEND_PREFIXES)
 
 def _static_file(static_dir: Path, path: str):
-    """Return a file from the build folder (e.g. /vite.svg), or None. Never leaves static_dir."""
+    """Return a file from the build folder (e.g. /favicon.svg), or None. Never leaves static_dir."""
     root = static_dir.resolve()
     candidate = (root / path.lstrip("/")).resolve()
     if candidate != root and candidate.is_relative_to(root) and candidate.is_file():

@@ -123,3 +123,23 @@ def test_admin_can_list_users(client, admin_headers, staff_user):
 def test_list_users_with_invalid_paging_returns_422(client, admin_headers, params):
     # Negative values would otherwise reach the database (a SQL error on MySQL)
     assert client.get(f"{API}/users/", headers=admin_headers, params=params).status_code == 422
+
+# --- Email case ---
+
+def test_login_email_is_case_insensitive(client, staff_user):
+    for email in ("Staff@Example.com", "STAFF@EXAMPLE.COM", " staff@example.com "):
+        response = client.post(f"{API}/login/access-token", data={"username": email, "password": PASSWORD})
+        assert response.status_code == 200, email
+
+def test_register_stores_lowercase_email_and_blocks_case_duplicates(client, db):
+    assert register(client, email="Mixed.Case@Example.com").status_code == 201
+    assert db.query(User).one().email == "mixed.case@example.com"
+    duplicate = register(client, custom_username="another", email="MIXED.CASE@example.com")
+    assert duplicate.status_code == 400
+    assert duplicate.json()["detail"] == "Email already registered"
+
+def test_login_finds_older_mixed_case_email(client, db, password_hash):
+    db.add(User(custom_username="old", email="Old.User@Example.com", hashed_password=password_hash, role="staff"))
+    db.commit()
+    response = client.post(f"{API}/login/access-token", data={"username": "old.user@example.com", "password": PASSWORD})
+    assert response.status_code == 200
