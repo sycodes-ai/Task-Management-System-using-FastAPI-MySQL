@@ -1,1 +1,44 @@
+# Environment variables
 .env
+
+# Documentation
+development_guide.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.pip-cache/
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database
+*.sqlite3
+*.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+.gemini/
+.agents/
+brain/
+drop_tables.py
+create_tables.py
+test_fetch.py
+test_db.py
+reset_db.py
+.pytest_cache/
