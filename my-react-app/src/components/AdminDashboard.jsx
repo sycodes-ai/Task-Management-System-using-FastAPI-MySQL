@@ -34,8 +34,10 @@ function AdminDashboard({ user }) {
             .then(({ data }) => {
                 if (cancelled) return;
                 setUsers(data);
-                if (data.length > 0) {
-                    setSelectedUserId(data[0].id);
+                // Tasks are usually assigned to staff, so preselect the first staff user
+                const firstStaff = data.find(u => u.role === 'staff');
+                if (firstStaff) {
+                    setSelectedUserId(firstStaff.id);
                 }
             })
             .catch((err) => {
