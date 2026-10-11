@@ -1,5 +1,5 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, List, Literal, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -10,19 +10,44 @@ router = APIRouter()
 
 @router.get("/", response_model=List[schemas.TaskResponse])
 def read_tasks(
+    response: Response,
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    status_filter: Optional[schemas.TaskStatus] = Query(None, alias="status"),
+    assignee_id: Optional[int] = None,
+    q: Optional[str] = Query(None, max_length=100),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    sort: Literal["created_at", "-created_at"] = "-created_at",
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve tasks. Admins see all, Staff see assigned.
+    Retrieve tasks. Admins see all (optionally filtered by assignee), Staff see their own.
+    The total number of matching tasks is returned in the X-Total-Count header.
     """
-    if current_user.role == "admin":
-        tasks = crud_task.get_multi(db, skip=skip, limit=limit)
-    else:
-        tasks = crud_task.get_multi_by_assignee(db, assignee_id=current_user.id, skip=skip, limit=limit)
+    if current_user.role != "admin":
+        assignee_id = current_user.id
+    tasks, total = crud_task.get_multi_filtered(
+        db,
+        assignee_id=assignee_id,
+        status=status_filter,
+        q=q,
+        skip=skip,
+        limit=limit,
+        sort=sort,
+    )
+    response.headers["X-Total-Count"] = str(total)
     return tasks
+
+@router.get("/stats", response_model=schemas.TaskStats)
+def read_task_stats(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Task counts per status. Admins count all tasks, Staff their own.
+    """
+    assignee_id = None if current_user.role == "admin" else current_user.id
+    return crud_task.get_status_counts(db, assignee_id=assignee_id)
 
 @router.post("/", response_model=schemas.TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(
