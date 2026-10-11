@@ -1,34 +1,31 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../api';
+import { getErrorMessage } from '../utils';
 
 function Register() {
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState('staff');
     const [error, setError] = useState('');
+    const [submitting, setSubmitting] = useState(false);
     const navigate = useNavigate();
 
     const handleRegister = async (e) => {
         e.preventDefault();
+        setError('');
+        setSubmitting(true);
         try {
+            // New accounts are always staff; the server decides the role
             await api.post('/users/register', {
                 custom_username: username,
                 email: email,
-                password: password,
-                role: role
+                password: password
             });
             navigate('/login');
         } catch (err) {
-            const detail = err.response?.data?.detail;
-            if (Array.isArray(detail)) {
-                // Handle FastAPI validation error arrays (e.g. 422 errors)
-                setError(detail.map(d => `${d.loc.slice(-1)}: ${d.msg}`).join(', '));
-            } else {
-                // Handle string error messages
-                setError(detail || 'Registration failed');
-            }
+            setError(getErrorMessage(err, 'Registration failed'));
+            setSubmitting(false);
         }
     };
 
@@ -38,22 +35,26 @@ function Register() {
                 <h2>Create Account</h2>
                 <p className="subtitle">Join to manage your tasks effectively</p>
 
-                {error && <div className="error-message">{error}</div>}
+                {error && <div className="error-message" role="alert">{error}</div>}
 
                 <form onSubmit={handleRegister}>
                     <div className="form-group">
-                        <label>Username</label>
+                        <label htmlFor="username">Username</label>
                         <input
+                            id="username"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             placeholder="Choose a username"
+                            minLength={3}
+                            maxLength={50}
                             required
                         />
                     </div>
                     <div className="form-group">
-                        <label>Email</label>
+                        <label htmlFor="email">Email</label>
                         <input
+                            id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -62,23 +63,21 @@ function Register() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Password</label>
+                        <label htmlFor="password">Password</label>
                         <input
+                            id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Create a strong password"
+                            placeholder="At least 8 characters"
+                            minLength={8}
                             required
                         />
                     </div>
-                    <div className="form-group">
-                        <label>Role</label>
-                        <select value={role} onChange={(e) => setRole(e.target.value)} className="role-select">
-                            <option value="staff">Staff</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <button type="submit" className="primary-button">Register</button>
+                    <p className="note">New accounts are staff. Use the demo admin to assign tasks.</p>
+                    <button type="submit" className="primary-button" disabled={submitting}>
+                        {submitting ? 'Creating account...' : 'Register'}
+                    </button>
                 </form>
 
                 <p className="auth-switch">

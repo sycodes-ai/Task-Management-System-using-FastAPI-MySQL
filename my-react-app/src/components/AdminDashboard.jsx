@@ -1,68 +1,89 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { STATUS_OPTIONS, getErrorMessage } from '../utils';
+import { useTaskQuery, useTaskData } from '../hooks/useTasks';
+import TaskToolbar from './TaskToolbar';
+import StatCards from './StatCards';
+import Pagination from './Pagination';
 
 function AdminDashboard({ user }) {
-    const [tasks, setTasks] = useState([]);
     const [users, setUsers] = useState([]);
+    const [usersError, setUsersError] = useState('');
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskDesc, setNewTaskDesc] = useState('');
     const [selectedUserId, setSelectedUserId] = useState('');
+    const [creating, setCreating] = useState(false);
+    const [actionError, setActionError] = useState('');
     const navigate = useNavigate();
+
+    const { query, searchInput, setStatus, setSearch, setPage } = useTaskQuery();
+    const { tasks, total, stats, error, loading, initialLoading, reload } = useTaskData(query);
 
     // Editing State
     const [editingTaskId, setEditingTaskId] = useState(null);
     const [editFormData, setEditFormData] = useState({});
+    const [saving, setSaving] = useState(false);
+
+    // Delete confirmation State
+    const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
     useEffect(() => {
-        fetchTasks();
-        fetchUsers();
+        let cancelled = false;
+        api.get('/users/')
+            .then(({ data }) => {
+                if (cancelled) return;
+                setUsers(data);
+                if (data.length > 0) {
+                    setSelectedUserId(data[0].id);
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) setUsersError(getErrorMessage(err, 'Failed to load users'));
+            });
+        return () => { cancelled = true; };
     }, []);
-
-    const fetchTasks = async () => {
-        try {
-            const { data } = await api.get('/tasks/');
-            setTasks(data);
-        } catch (err) {
-            console.error('Failed to fetch tasks', err);
-        }
-    };
-
-    const fetchUsers = async () => {
-        try {
-            const { data } = await api.get('/users/');
-            setUsers(data.filter(u => u.role === 'staff' || u.role === 'admin'));
-            if (data.length > 0) {
-                setSelectedUserId(data[0].id);
-            }
-        } catch (err) {
-            console.error('Failed to fetch users', err);
-        }
-    };
 
     const handleCreateTask = async (e) => {
         e.preventDefault();
         if (!newTaskTitle.trim() || !selectedUserId) return;
+        setActionError('');
+        setCreating(true);
         try {
-            await api.post('/tasks/', { title: newTaskTitle, description: newTaskDesc, assignee_id: parseInt(selectedUserId) });
+            await api.post('/tasks/', {
+                title: newTaskTitle,
+                description: newTaskDesc.trim() || null,
+                assignee_id: parseInt(selectedUserId)
+            });
             setNewTaskTitle('');
             setNewTaskDesc('');
-            fetchTasks();
+            setPage(1);
+            reload();
         } catch (err) {
-            console.error('Failed to create task', err);
+            setActionError(getErrorMessage(err, 'Failed to create task'));
+        } finally {
+            setCreating(false);
         }
     };
 
     const handleDeleteTask = async (id) => {
+        setActionError('');
         try {
             await api.delete(`/tasks/${id}`);
-            fetchTasks();
+            setConfirmDeleteId(null);
+            // Deleting the last task on a page moves back one page
+            if (tasks.length === 1 && query.page > 1) {
+                setPage(query.page - 1);
+            }
+            reload();
         } catch (err) {
-            console.error('Failed to delete task', err);
+            setConfirmDeleteId(null);
+            setActionError(getErrorMessage(err, 'Failed to delete task'));
         }
     };
 
     const startEditing = (task) => {
+        setConfirmDeleteId(null);
         setEditingTaskId(task.id);
         setEditFormData({
             title: task.title,
@@ -85,6 +106,8 @@ function AdminDashboard({ user }) {
     };
 
     const saveEdit = async (id) => {
+        setActionError('');
+        setSaving(true);
         try {
             await api.put(`/tasks/${id}`, {
                 title: editFormData.title,
@@ -93,9 +116,11 @@ function AdminDashboard({ user }) {
                 assignee_id: parseInt(editFormData.assignee_id)
             });
             setEditingTaskId(null);
-            fetchTasks();
+            reload();
         } catch (err) {
-            console.error('Failed to update task', err);
+            setActionError(getErrorMessage(err, 'Failed to update task'));
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -103,6 +128,8 @@ function AdminDashboard({ user }) {
         localStorage.removeItem('token');
         navigate('/login');
     };
+
+    const filtersActive = Boolean(query.status || query.q);
 
     return (
         <div className="dashboard-layout">
@@ -117,6 +144,8 @@ function AdminDashboard({ user }) {
             </header>
 
             <main className="dashboard-main">
+                <StatCards stats={stats} />
+
                 <section className="create-task-section">
                     <form className="create-task-form" onSubmit={handleCreateTask}>
                         <input
@@ -124,6 +153,7 @@ function AdminDashboard({ user }) {
                             placeholder="What needs to be done?"
                             value={newTaskTitle}
                             onChange={(e) => setNewTaskTitle(e.target.value)}
+                            maxLength={100}
                             required
                         />
                         <input
@@ -131,10 +161,12 @@ function AdminDashboard({ user }) {
                             placeholder="Details (optional)"
                             value={newTaskDesc}
                             onChange={(e) => setNewTaskDesc(e.target.value)}
+                            maxLength={255}
                         />
                         <select
                             value={selectedUserId}
                             onChange={(e) => setSelectedUserId(e.target.value)}
+                            aria-label="Assignee"
                             required
                         >
                             <option value="">Select Assignee</option>
@@ -142,17 +174,32 @@ function AdminDashboard({ user }) {
                                 <option key={u.id} value={u.id}>{u.custom_username} ({u.role})</option>
                             ))}
                         </select>
-                        <button type="submit" className="primary-button">Assign Task</button>
+                        <button type="submit" className="primary-button" disabled={creating}>
+                            {creating ? 'Assigning...' : 'Assign Task'}
+                        </button>
                     </form>
                 </section>
 
-                <section className="tasks-section">
-                    {tasks.length === 0 ? (
+                <TaskToolbar
+                    status={query.status}
+                    onStatusChange={setStatus}
+                    searchInput={searchInput}
+                    onSearchChange={setSearch}
+                />
+
+                {(error || usersError || actionError) && (
+                    <div className="error-message" role="alert">{error || usersError || actionError}</div>
+                )}
+
+                <section className="tasks-section" aria-busy={loading}>
+                    {initialLoading ? (
+                        <div className="empty-state"><p>Loading tasks...</p></div>
+                    ) : tasks.length === 0 ? (
                         <div className="empty-state">
-                            <p>No tasks found.</p>
+                            <p>{filtersActive ? 'No tasks match your filters.' : 'No tasks found.'}</p>
                         </div>
                     ) : (
-                        <div className="task-grid">
+                        <div className={`task-grid ${loading ? 'refreshing' : ''}`}>
                             {tasks.map(task => {
                                 const isEditing = editingTaskId === task.id;
                                 return (
@@ -162,27 +209,33 @@ function AdminDashboard({ user }) {
                                                 <input
                                                     type="text"
                                                     name="title"
+                                                    aria-label="Title"
                                                     value={editFormData.title}
                                                     onChange={handleEditChange}
+                                                    maxLength={100}
                                                     required
                                                 />
                                                 <input
                                                     type="text"
                                                     name="description"
+                                                    aria-label="Description"
                                                     value={editFormData.description}
                                                     onChange={handleEditChange}
+                                                    maxLength={255}
                                                 />
                                                 <select
                                                     name="status"
+                                                    aria-label="Status"
                                                     value={editFormData.status}
                                                     onChange={handleEditChange}
                                                 >
-                                                    <option value="pending">Pending</option>
-                                                    <option value="in_progress">In Progress</option>
-                                                    <option value="completed">Completed</option>
+                                                    {STATUS_OPTIONS.map(o => (
+                                                        <option key={o.value} value={o.value}>{o.label}</option>
+                                                    ))}
                                                 </select>
                                                 <select
                                                     name="assignee_id"
+                                                    aria-label="Assignee"
                                                     value={editFormData.assignee_id}
                                                     onChange={handleEditChange}
                                                 >
@@ -191,14 +244,16 @@ function AdminDashboard({ user }) {
                                                     ))}
                                                 </select>
                                                 <div className="edit-actions">
-                                                    <button onClick={() => saveEdit(task.id)} className="primary-button small">Save</button>
+                                                    <button onClick={() => saveEdit(task.id)} className="primary-button small" disabled={saving}>
+                                                        {saving ? 'Saving...' : 'Save'}
+                                                    </button>
                                                     <button onClick={cancelEditing} className="text-button small">Cancel</button>
                                                 </div>
                                             </div>
                                         ) : (
                                             <>
                                                 <div className="task-content">
-                                                    <div>
+                                                    <div className="task-text">
                                                         <h3>{task.title}</h3>
                                                         {task.description && <p>{task.description}</p>}
                                                         <div className="task-meta">
@@ -208,14 +263,24 @@ function AdminDashboard({ user }) {
                                                     </div>
                                                 </div>
                                                 <div className="task-actions">
-                                                    <button className="edit-button" onClick={() => startEditing(task)}>Edit</button>
-                                                    <button
-                                                        className="delete-button"
-                                                        onClick={() => handleDeleteTask(task.id)}
-                                                        aria-label="Delete Task"
-                                                    >
-                                                        ×
-                                                    </button>
+                                                    {confirmDeleteId === task.id ? (
+                                                        <>
+                                                            <span className="confirm-text">Are you sure?</span>
+                                                            <button className="danger-button" onClick={() => handleDeleteTask(task.id)}>Yes, delete</button>
+                                                            <button className="text-button small" onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <button className="edit-button" onClick={() => startEditing(task)}>Edit</button>
+                                                            <button
+                                                                className="delete-button"
+                                                                onClick={() => setConfirmDeleteId(task.id)}
+                                                                aria-label={`Delete ${task.title}`}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </>
                                         )}
@@ -225,6 +290,8 @@ function AdminDashboard({ user }) {
                         </div>
                     )}
                 </section>
+
+                <Pagination page={query.page} total={total} onPageChange={setPage} disabled={loading} />
             </main>
         </div>
     );

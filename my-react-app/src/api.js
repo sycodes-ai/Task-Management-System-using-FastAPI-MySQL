@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api/v1',
+    baseURL: import.meta.env.VITE_API_URL || '/api/v1',
 });
 
 api.interceptors.request.use(
@@ -13,6 +13,18 @@ api.interceptors.request.use(
         return config;
     },
     (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// An expired or invalid token sends the user back to the login page
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401 && window.location.pathname !== '/login') {
+            localStorage.removeItem('token');
+            window.location.assign('/login');
+        }
         return Promise.reject(error);
     }
 );

@@ -1,34 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { STATUS_OPTIONS, getErrorMessage } from '../utils';
+import { useTaskQuery, useTaskData } from '../hooks/useTasks';
+import TaskToolbar from './TaskToolbar';
+import StatCards from './StatCards';
+import Pagination from './Pagination';
 
 function StaffDashboard({ user }) {
-    const [tasks, setTasks] = useState([]);
     const navigate = useNavigate();
+    const [actionError, setActionError] = useState('');
+    const [updatingId, setUpdatingId] = useState(null);
 
-    useEffect(() => {
-        fetchTasks();
-    }, []);
-
-    const fetchTasks = async () => {
-        try {
-            const { data } = await api.get('/tasks/');
-            setTasks(data);
-        } catch (err) {
-            console.error('Failed to fetch tasks', err);
-        }
-    };
+    const { query, setStatus, setPage } = useTaskQuery();
+    const { tasks, total, stats, error, loading, initialLoading, reload } = useTaskData(query);
 
     const handleStatusChange = async (task, newStatus) => {
+        setActionError('');
+        setUpdatingId(task.id);
         try {
-            await api.put(`/tasks/${task.id}`, {
-                title: task.title,
-                description: task.description,
-                status: newStatus
-            });
-            fetchTasks();
+            // Staff may only change the status
+            await api.put(`/tasks/${task.id}`, { status: newStatus });
+            reload();
         } catch (err) {
-            console.error('Failed to update task status', err);
+            setActionError(getErrorMessage(err, 'Failed to update task status'));
+        } finally {
+            setUpdatingId(null);
         }
     };
 
@@ -50,13 +47,22 @@ function StaffDashboard({ user }) {
             </header>
 
             <main className="dashboard-main">
-                <section className="tasks-section">
-                    {tasks.length === 0 ? (
+                <StatCards stats={stats} />
+                <TaskToolbar status={query.status} onStatusChange={setStatus} />
+
+                {(error || actionError) && (
+                    <div className="error-message" role="alert">{error || actionError}</div>
+                )}
+
+                <section className="tasks-section" aria-busy={loading}>
+                    {initialLoading ? (
+                        <div className="empty-state"><p>Loading tasks...</p></div>
+                    ) : tasks.length === 0 ? (
                         <div className="empty-state">
-                            <p>You have no tasks assigned yet.</p>
+                            <p>{query.status ? 'No tasks match this filter.' : 'You have no tasks assigned yet.'}</p>
                         </div>
                     ) : (
-                        <div className="task-grid">
+                        <div className={`task-grid ${loading ? 'refreshing' : ''}`}>
                             {tasks.map(task => (
                                 <div key={task.id} className={`task-card ${task.status === 'completed' ? 'completed' : ''}`}>
                                     <div className="task-content">
@@ -64,14 +70,16 @@ function StaffDashboard({ user }) {
                                             <select
                                                 value={task.status}
                                                 onChange={(e) => handleStatusChange(task, e.target.value)}
+                                                disabled={updatingId === task.id}
+                                                aria-label={`Status of ${task.title}`}
                                                 className={`status-select ${task.status}`}
                                             >
-                                                <option value="pending">Pending</option>
-                                                <option value="in_progress">In Progress</option>
-                                                <option value="completed">Completed</option>
+                                                {STATUS_OPTIONS.map(o => (
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                ))}
                                             </select>
                                         </div>
-                                        <div>
+                                        <div className="task-text">
                                             <h3>{task.title}</h3>
                                             {task.description && <p>{task.description}</p>}
                                         </div>
@@ -82,6 +90,8 @@ function StaffDashboard({ user }) {
                         </div>
                     )}
                 </section>
+
+                <Pagination page={query.page} total={total} onPageChange={setPage} disabled={loading} />
             </main>
         </div>
     );
