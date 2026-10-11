@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: tms_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      # Makes tests/test_mysql.py run against the MySQL service above
+      TEST_DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/tms_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run tests
+        # Same command and settings (pytest.ini) as a local run
+        shell: bash
+        run: pytest | tee pytest.log
+      - name: Check that the MySQL test ran
+        run: |
+          if grep -q "TEST_DATABASE_URL is not set" pytest.log; then
+            echo "The MySQL test was skipped"; exit 1
+          fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: my-react-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: my-react-app/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t tms .
+      - name: Smoke test the image
+        run: |
+          docker run -d --name tms -p 8000:8000 -e DEMO_MODE=true -e SECRET_KEY=test tms
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:8000/api/v1/health && break
+            sleep 1
+          done
+          curl -fs http://localhost:8000/api/v1/health
+          curl -fs http://localhost:8000/login | grep -q '<div id="root">'
+          curl -fs -X POST http://localhost:8000/api/v1/login/access-token \
+            -d "username=admin@demo.com&password=Admin123!" | grep -q access_token
+          test "$(docker exec tms id -u)" = "10001"
+      - name: Container logs
+        if: failure()
+        run: docker logs tms
