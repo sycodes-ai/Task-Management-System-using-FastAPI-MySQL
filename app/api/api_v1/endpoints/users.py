@@ -1,5 +1,5 @@
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -43,8 +43,8 @@ def get_me(
 @router.get("/", response_model=list[schemas.UserResponse])
 def read_users(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
     current_admin: models.User = Depends(deps.get_current_admin),
 ) -> Any:
     """

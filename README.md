@@ -177,8 +177,8 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-- **87 tests** run anywhere: they use an in-memory SQLite database and ignore your `.env`. They cover registration, login, token errors, role rules, validation, filters, pagination, stats, the demo seed and serving the React build.
-- **1 more test** (88 in total) runs a short end-to-end flow on a real database. It is skipped unless `TEST_DATABASE_URL` is set. **CI runs it against a MySQL 8 service.** To run it yourself, use an empty throwaway database (its tables are dropped afterwards):
+- **92 tests** run anywhere: they use an in-memory SQLite database and ignore your `.env`. They cover registration, login, token errors, role rules, validation, filters, pagination, stats, the demo seed and serving the React build.
+- **1 more test** (93 in total) runs a short end-to-end flow on a real database. It is skipped unless `TEST_DATABASE_URL` is set. **CI runs it against a MySQL 8 service.** To run it yourself, use an empty throwaway database (its tables are dropped afterwards):
 
   ```bash
   TEST_DATABASE_URL=mysql+pymysql://root:root@127.0.0.1:3306/tms_test pytest
@@ -197,7 +197,7 @@ Base path: `/api/v1`. Interactive documentation: `/docs`.
 | **POST** | `/users/register` | Register a user. Always creates a **staff** account; a `role` in the body is ignored. | Public |
 | **POST** | `/login/access-token` | Log in (form fields `username` = email, `password`) and receive a JWT. | Public |
 | **GET** | `/users/me` | Current user profile. | Any logged-in user |
-| **GET** | `/users/` | List users. | **Admin** |
+| **GET** | `/users/` | List users. Query: `skip` (≥ 0), `limit` (1–100, default 100). | **Admin** |
 | **GET** | `/health` | `{"status": "ok"}` (no database call). Used by the hosting health check. | Public |
 
 ### Tasks
@@ -216,7 +216,7 @@ Base path: `/api/v1`. Interactive documentation: `/docs`.
 | Code | Meaning |
 | :--- | :--- |
 | `400` | Wrong email or password, or the email/username is already registered |
-| `401` | Missing, invalid or expired token (with `WWW-Authenticate: Bearer`), or the user no longer exists |
+| `401` | Missing, invalid or expired token (with `WWW-Authenticate: Bearer`), or the user no longer exists or was deactivated |
 | `403` | Logged in, but not allowed (for example staff calling an admin endpoint) |
 | `404` | Task or assignee not found; unknown API paths return a JSON 404 |
 | `422` | Invalid input (for example an unknown `status`, a short password, `limit=500`) |

@@ -103,6 +103,12 @@ def test_token_for_deleted_user_returns_401(client, db, staff_user, staff_header
     response = client.get(f"{API}/users/me", headers=staff_headers)
     assert response.status_code == 401
 
+def test_token_for_deactivated_user_returns_401(client, db, staff_user, staff_headers):
+    staff_user.is_active = False
+    db.commit()
+    response = client.get(f"{API}/users/me", headers=staff_headers)
+    assert response.status_code == 401
+
 # --- Role checks on users ---
 
 def test_staff_cannot_list_users(client, staff_headers):
@@ -112,3 +118,8 @@ def test_admin_can_list_users(client, admin_headers, staff_user):
     response = client.get(f"{API}/users/", headers=admin_headers)
     assert response.status_code == 200
     assert {u["email"] for u in response.json()} == {"admin@example.com", "staff@example.com"}
+
+@pytest.mark.parametrize("params", [{"skip": -1}, {"limit": 0}, {"limit": -1}, {"limit": 500}])
+def test_list_users_with_invalid_paging_returns_422(client, admin_headers, params):
+    # Negative values would otherwise reach the database (a SQL error on MySQL)
+    assert client.get(f"{API}/users/", headers=admin_headers, params=params).status_code == 422

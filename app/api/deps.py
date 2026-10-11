@@ -40,7 +40,8 @@ def get_current_user(
     if token_data.sub is None:
         raise credentials_exception
     user = db.get(models.User, token_data.sub)
-    if not user:
+    # Deleted or deactivated users lose access even if their token has not expired
+    if not user or not user.is_active:
         raise credentials_exception
     return user
 

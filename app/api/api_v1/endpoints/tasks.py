@@ -94,7 +94,7 @@ def update_task(
     task = crud_task.get_task(db, task_id=task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-        
+
     if current_user.role == "staff":
         if task.assignee_id != current_user.id:
             raise HTTPException(status_code=403, detail="Not enough permissions")
