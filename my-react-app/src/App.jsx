@@ -22,6 +22,8 @@ function App() {
             </PrivateRoute>
           }
         />
+        {/* Unknown paths go to the home page (which sends logged-out users to /login) */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
