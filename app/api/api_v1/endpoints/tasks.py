@@ -34,7 +34,8 @@ def create_task(
     """
     Create new task. (Admin only)
     """
-    user = crud_user.get_users(db) # Verify assignee exists? Let FK handle it or optionally verify.
+    if not crud_user.get_user(db, user_id=task_in.assignee_id):
+        raise HTTPException(status_code=404, detail="Assignee not found")
     return crud_task.create_assigned_task(db, obj_in=task_in, assigned_by_id=current_admin.id)
 
 @router.get("/{task_id}", response_model=schemas.TaskResponse)
@@ -51,7 +52,7 @@ def read_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     if current_user.role != "admin" and task.assignee_id != current_user.id:
-        raise HTTPException(status_code=400, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     return task
 
 @router.put("/{task_id}", response_model=schemas.TaskResponse)
@@ -71,9 +72,21 @@ def update_task(
         
     if current_user.role == "staff":
         if task.assignee_id != current_user.id:
-            raise HTTPException(status_code=400, detail="Not enough permissions")
-        # Ensure staff can only update status
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+        # Staff may only change the status. Other fields are allowed in the body
+        # as long as they match the stored values.
+        changed = {
+            field for field, value in task_in.model_dump(exclude_unset=True).items()
+            if field != "status" and getattr(task, field) != value
+        }
+        if changed:
+            raise HTTPException(status_code=403, detail="Staff can only update the task status")
+        if task_in.status is None:
+            raise HTTPException(status_code=422, detail="Status is required")
         task_in = schemas.TaskUpdate(status=task_in.status)
+    elif task_in.assignee_id is not None and task_in.assignee_id != task.assignee_id:
+        if not crud_user.get_user(db, user_id=task_in.assignee_id):
+            raise HTTPException(status_code=404, detail="Assignee not found")
 
     return crud_task.update_task(db, db_obj=task, obj_in=task_in)
 

@@ -15,7 +15,7 @@ def register_user(
     user_in: schemas.UserCreate,
 ) -> Any:
     """
-    Create new user.
+    Create new user. New users are always staff; any role in the body is ignored.
     """
     user = crud_user.get_user_by_username(db, username=user_in.custom_username)
     if user:

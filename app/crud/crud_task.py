@@ -35,7 +35,7 @@ def update_task(db: Session, db_obj: Task, obj_in: TaskUpdate) -> Task:
     return db_obj
 
 def remove_task(db: Session, task_id: int) -> Optional[Task]:
-    obj = db.query(Task).get(task_id)
+    obj = db.get(Task, task_id)
     if obj:
         db.delete(obj)
         db.commit()
