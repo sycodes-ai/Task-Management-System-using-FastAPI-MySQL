@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
@@ -9,17 +10,20 @@ def normalize_database_url(url: str) -> str:
             return "postgresql+psycopg://" + url[len(prefix):]
     return url
 
-database_url = normalize_database_url(settings.DATABASE_URL)
+def create_db_engine(url: str, **kwargs) -> Engine:
+    """Create an engine for MySQL, PostgreSQL or SQLite with the settings each one needs."""
+    url = normalize_database_url(url)
+    connect_args = {}
+    if url.startswith("sqlite"):
+        # FastAPI runs sync endpoints in a thread pool
+        connect_args["check_same_thread"] = False
+    return create_engine(
+        url,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        **kwargs
+    )
 
-connect_args = {}
-if database_url.startswith("sqlite"):
-    # FastAPI runs sync endpoints in a thread pool
-    connect_args["check_same_thread"] = False
-
-engine = create_engine(
-    database_url,
-    connect_args=connect_args,
-    pool_pre_ping=True,
-    pool_recycle=3600
-)
+engine = create_db_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
